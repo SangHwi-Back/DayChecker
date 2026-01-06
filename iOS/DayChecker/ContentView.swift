@@ -10,6 +10,7 @@ import SwiftUI
 struct IdentifiedDate: Identifiable {
     var id = UUID()
     let date: Date
+    var isHidden: Bool = false
 }
 
 struct ContentView: View {
@@ -31,21 +32,25 @@ struct ContentView: View {
     
     /// 현재 월의 날짜 범위를 가져옵니다
     var numberOfWeeksInCurrentMonth: [NumberOfWeek] {
-        guard let range = Calendar.current.range(of: .weekOfMonth, in: .month, for: Date()) else {
+        guard let monthStart,
+              let range = Calendar.current.range(of: .weekOfMonth, in: .month, for: Date()) else {
             return []
         }
         
-        var result = range.compactMap {
-            NumberOfWeek(rawValue: $0)
+        var result: [NumberOfWeek] = []
+        
+        // 월의 첫날이 일요일(1)이 아니면 이전 달의 마지막 주를 추가
+        let weekday = Calendar.current.component(.weekday, from: monthStart)
+        if weekday != 1 {  // 1 = 일요일
+            result.append(.prev)
         }
         
-        if let monthStart, Calendar.current.component(.day, from: monthStart) != 1 {
-            result.insert(.prev, at: 0)
-        }
-        
-        return range.compactMap {
+        // 현재 월의 주차들 추가
+        result.append(contentsOf: range.compactMap {
             NumberOfWeek(rawValue: $0)
-        }
+        })
+        
+        return result
     }
     /// 이번달 n번째주의 날짜를 모두 가져옴
     func getWeekDays(of numberOfWeek: NumberOfWeek) -> [IdentifiedDate] {
@@ -57,24 +62,46 @@ struct ContentView: View {
             return []
         }
         
-        // TODO: 이전 달의 마지막 주 추가되는 경우 대응
-        // 월 시작일부터 n주차에 해당하는 주의 시작일을 구합니다
-        guard let weekStart = calendar.date(byAdding: .weekOfMonth,
-                                            value: numberOfWeek.calendarValue,
-                                            to: monthStart),
-              let weekInterval = calendar.dateInterval(of: .weekOfMonth,
-                                                       for: weekStart) else {
-            return []
+        // .prev인 경우 월 시작일이 속한 주를 가져오고, 그 외에는 기존 로직 사용
+        let weekInterval: DateInterval
+        if numberOfWeek == .prev {
+            // 월 시작일이 속한 주의 구간을 가져옴
+            guard let interval = calendar.dateInterval(of: .weekOfMonth, for: monthStart) else {
+                return []
+            }
+            weekInterval = interval
+        } else {
+            // 월 시작일부터 n주차에 해당하는 주의 시작일을 구합니다
+            guard let weekStart = calendar.date(byAdding: .weekOfMonth,
+                                                value: numberOfWeek.calendarValue,
+                                                to: monthStart),
+                  let interval = calendar.dateInterval(of: .weekOfMonth, for: weekStart) else {
+                return []
+            }
+            weekInterval = interval
         }
         
         var result: [Date] = []
         var currentDate = weekInterval.start
         
+        let currentMonth = calendar.component(.month, from: now)
+        
         // 주의 모든 날짜를 배열에 추가합니다
         while currentDate < weekInterval.end {
-            // 현재 월에 속한 날짜만 추가
-            if calendar.component(.month, from: currentDate) == calendar.component(.month, from: now) {
-                result.append(currentDate)
+            let dateMonth = calendar.component(.month, from: currentDate)
+            
+            // 이전 달 마지막 주(.prev)인 경우 이전 달과 현재 달 날짜 모두 포함
+            // 그 외의 경우 현재 월에 속한 날짜만 추가
+            if numberOfWeek == .prev {
+                // 이전 달이거나 현재 달인 날짜 추가
+                if dateMonth == currentMonth || dateMonth == (currentMonth == 1 ? 12 : currentMonth - 1) {
+                    result.append(currentDate)
+                }
+            } else {
+                // 현재 월에 속한 날짜만 추가
+                if dateMonth == currentMonth {
+                    result.append(currentDate)
+                }
             }
             
             guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) else {
@@ -84,7 +111,10 @@ struct ContentView: View {
             currentDate = nextDate
         }
         
-        return result.map { IdentifiedDate(date: $0) }
+        return result.map {
+            let hidden = Calendar.current.compare($0, to: monthStart, toGranularity: .month) != .orderedSame
+            return IdentifiedDate(date: $0, isHidden: hidden)
+        }
     }
     
     var body: some View {
@@ -96,9 +126,12 @@ struct ContentView: View {
                         ForEach(getWeekDays(of: numberOfRow)) { identifiedDate in
                             ZStack {
                                 RoundedRectangle(cornerSize: CGSize(width: 8, height: 8))
-                                    .fill(Color.red)
+                                    .fill(identifiedDate.isHidden ? Color.clear : Color.red)
                                     .frame(width: width , height: width)
-                                Text(cellDateFormat.string(from: identifiedDate.date))
+                                if identifiedDate.isHidden == false {
+                                    Text(cellDateFormat.string(
+                                        from: identifiedDate.date))
+                                }
                             }
                         }
                     }
