@@ -5,11 +5,11 @@
 //  Created by 백상휘 on 1/6/26.
 //
 
-import SwiftUI
+import Foundation
+import Combine
 
-@Observable
-class CalendarViewModel {
-    var date: Date
+class CalendarViewModel: ObservableObject {
+    @Published var date: Date
     
     private(set) var headerDateFormat: DateFormatter
     private(set) var cellDateFormat: DateFormatter
@@ -35,6 +35,7 @@ class CalendarViewModel {
         
         let newDate = Calendar.current.date(from: DateComponents(year: year, month: month))
         self.date = newDate ?? date
+        self.objectWillChange.send()
     }
     
     /// 현재 월의 날짜 범위를 가져옵니다

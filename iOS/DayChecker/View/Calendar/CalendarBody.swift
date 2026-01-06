@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CalendarBody: View {
-    let viewModel: CalendarViewModel
+    @StateObject var viewModel: CalendarViewModel
     
     var body: some View {
         GeometryReader { proxy in

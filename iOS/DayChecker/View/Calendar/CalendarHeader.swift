@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CalendarHeader: View {
-    let viewModel: CalendarViewModel
+    @StateObject var viewModel: CalendarViewModel
     var actionLeft: () -> Void {
         viewModel.goPrevMonth
     }
@@ -60,11 +60,10 @@ private struct ArrowButtonStyle: ButtonStyle {
             .font(.caption)
             .padding(.vertical, 9)
             .padding(.horizontal, 15)
-            .background(Color(.systemGray6))
             .clipShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.8 : 1.0)
         
-        if #available(iOS 18.0, *) {
+        if #available(iOS 26.0, *) {
             // iOS 18 이상: Liquid Glass 효과 사용
             return AnyView(
                 baseView
@@ -75,8 +74,8 @@ private struct ArrowButtonStyle: ButtonStyle {
             // iOS 18 미만: 그림자 효과 사용
             return AnyView(
                 baseView
-                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+                    .background(Color.gray.opacity(0.05).shadow(color: .gray, radius: 4, x: 0, y: 2))
+                    .clipShape(Capsule())
             )
         }
     }
